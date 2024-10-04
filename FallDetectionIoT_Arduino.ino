@@ -31,6 +31,11 @@ const char* password = "001101001101";  // Replace with your Wi-Fi Password
 // Web server URL (replace with your web server URL)
 const char* serverName = "http://172.20.10.5:5278/api/FallDetection"; 
 
+// Store the last time GPS was updated
+unsigned long previousMillis = 0;  
+// Interval to update GPS every 1 second
+const long interval = 1000;  
+
 void setup() {
   // Initialize serial communication for debugging
   Serial.println("Start...");
@@ -110,6 +115,13 @@ void fetchData() {
 }
 
 void loop() {
+    // Update GPS location every 1 second
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+        previousMillis = currentMillis;
+        updateGPS();  // Update GPS data every second
+    }
+
     // Get new sensor events from the MPU6050
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
@@ -132,10 +144,7 @@ void loop() {
         // Turn off the buzzer after the delay
         digitalWrite(buzzerPin, LOW);
 
-        // Get the GPS location if available
-        getGPSLocation();
-
-        // Prepare JSON payload
+        // Prepare JSON payload and send to the WebAPI
         if (WiFi.status() == WL_CONNECTED) {
             HTTPClient http;
             http.begin(serverName); // Specify the server URL
@@ -147,8 +156,8 @@ void loop() {
             // Add relevant data to JSON payload without nested objects
             jsonDoc["Name"] = "Fall Event";  // Replace with actual event name if available
             jsonDoc["FallDate"] = "2024-10-04T12:34:56";  // Use real-time in ISO 8601 format if available
-            jsonDoc["Latitude"] = String(latitude, 6);  // Get GPS latitude
-            jsonDoc["Longitude"] = String(longitude, 6);  // Get GPS longitude
+            jsonDoc["Latitude"] = String(latitude, 6);  // Use updated GPS latitude
+            jsonDoc["Longitude"] = String(longitude, 6);  // Use updated GPS longitude
             jsonDoc["accelX"] = String(a.acceleration.x, 2); // X-axis acceleration
             jsonDoc["accelY"] = String(a.acceleration.y, 2); // Y-axis acceleration
             jsonDoc["accelZ"] = String(a.acceleration.z, 2); // Z-axis acceleration
@@ -170,7 +179,7 @@ void loop() {
                 Serial.println("Error on sending POST: " + String(httpResponseCode));
             }
 
-            // Serialize JSON document to string for debugging
+            // Debug: print the request body to Serial
             String tempPrint;
             serializeJson(jsonDoc, tempPrint);
             Serial.println("Request Body:");
@@ -184,7 +193,6 @@ void loop() {
         delay(1000); // Adjust delay for responsiveness and avoid rapid requests
     }
 }
-
 
 void connectWIFI(){
 // Connect to Wi-Fi
@@ -220,24 +228,27 @@ void InitializeMPU6050(){
   digitalWrite(buzzerPin, LOW); // Ensure buzzer is off initially
 }
 
-// Function to send GPS latitude and longitude to the web server
-void getGPSLocation() {
-   Serial.println("Inside getGPSLocation function");
-  if (gps.location.isValid()) {
-    latitude = gps.location.lat();
-    longitude = gps.location.lng();
- 
-    // Print the GPS location to the Serial Monitor
-    Serial.print("Latitude: ");
-    Serial.println(latitude, 6);
-    Serial.print("Longitude: ");
-    Serial.println(longitude, 6);
-  } 
-  // else {
-  //   Serial.println("Unable to get GPS Location")
-  // }
-}
+// Function to update GPS location
+void updateGPS() {
+    // Continuously read GPS data
+    while (GPS_Serial.available() > 0) {
+        gps.encode(GPS_Serial.read());
+    }
 
+    // Get the GPS location if available
+    if (gps.location.isValid()) {
+        latitude = gps.location.lat();
+        longitude = gps.location.lng();
+        
+        // Print updated GPS location
+        Serial.print("Updated Latitude: ");
+        Serial.println(latitude, 6);
+        Serial.print("Updated Longitude: ");
+        Serial.println(longitude, 6);
+    } else {
+        Serial.println("Waiting for valid GPS location...");
+    }
+}
 
 
 
