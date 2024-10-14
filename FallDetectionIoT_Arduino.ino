@@ -21,8 +21,10 @@ const int buzzerPin = 4;
 const double BUZZER_THRESHOLD = 50.0;
 
  // GPS data
-double latitude = 0.0;
-double longitude = 0.0;
+// double latitude = -31.950551;
+// double longitude = 115.864682;
+double latitude = -31.958630;
+double longitude = 115.870925;
 
 // Wi-Fi credentials
 const char* ssid = "LeonLee"; // Replace with your Wi-Fi SSID
@@ -46,82 +48,16 @@ void setup() {
 
   InitializeMPU6050();
 
-  // fetchData();
-
   delay(100);
 }
 
-// Function to fetch data from the WebAPI and display it
-void fetchData() {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-
-    // Specify the server URL
-    http.begin(serverName);
-
-    // Send the GET request
-    int httpResponseCode = http.GET();
-
-    // Check if the GET request was successful
-    if (httpResponseCode > 0) {
-      String response = http.getString();  // Get the response payload
-      Serial.println("HTTP Response Code: " + String(httpResponseCode));
-      Serial.println("Response:");
-      Serial.println(response);
-
-      // Parse JSON data
-      StaticJsonDocument<2048> doc;
-      DeserializationError error = deserializeJson(doc, response);
-
-      // Check if parsing was successful
-      if (error) {
-        Serial.print("Failed to parse JSON: ");
-        Serial.println(error.f_str());
-        return;
-      }
-
-      // Iterate over the JSON array
-      for (JsonObject obj : doc.as<JsonArray>()) {
-        Serial.println("----- Fall Detection Record -----");
-        Serial.print("ID: ");
-        Serial.println(obj["id"].as<String>());
-        Serial.print("Name: ");
-        Serial.println(obj["name"].as<String>());
-        Serial.print("Fall Date: ");
-        Serial.println(obj["fallDate"].as<String>());
-        Serial.print("Longitude: ");
-        Serial.println(obj["longitude"].as<String>());
-        Serial.print("Latitude: ");
-        Serial.println(obj["latitude"].as<String>());
-        Serial.print("Acceleration X: ");
-        Serial.println(obj["accelX"].as<String>());
-        Serial.print("Acceleration Y: ");
-        Serial.println(obj["accelY"].as<String>());
-        Serial.print("Acceleration Z: ");
-        Serial.println(obj["accelZ"].as<String>());
-        Serial.println("--------------------------------");
-      }
-
-    } else {
-      Serial.print("Error on HTTP request: ");
-      Serial.println(httpResponseCode);
-    }
-
-    // End the HTTP connection
-    http.end();
-  } else {
-    Serial.println("Wi-Fi is not connected.");
-  }
-}
 
 void loop() {
-    // Update GPS location every 1 second
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis;
-        updateGPS();  // Update GPS data every second
+    
+    
+    while (GPS_Serial.available() > 0) {
+        gps.encode(GPS_Serial.read());
     }
-
     // Get new sensor events from the MPU6050
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
@@ -130,13 +66,13 @@ void loop() {
     float accelerationMagnitude = sqrt(a.acceleration.x * a.acceleration.x +
                                        a.acceleration.y * a.acceleration.y +
                                        a.acceleration.z * a.acceleration.z);
-
+    printGPSLocation();
     // Check if the acceleration magnitude exceeds the threshold
     if (accelerationMagnitude > BUZZER_THRESHOLD) {
         Serial.println("Current Acceleration Magnitude: " + String(accelerationMagnitude));
 
         // Activate the buzzer
-        digitalWrite(buzzerPin, HIGH);
+         digitalWrite(buzzerPin, HIGH);
         
         // Keep the buzzer on for a short time (e.g., 1 second)
         delay(1000);
@@ -154,7 +90,7 @@ void loop() {
             StaticJsonDocument<200> jsonDoc;
             
             // Add relevant data to JSON payload without nested objects
-            jsonDoc["Name"] = "Fall Event";  // Replace with actual event name if available
+            jsonDoc["Name"] = "Daniel Johnson";  // Replace with actual event name if available
             jsonDoc["FallDate"] = "2024-10-04T12:34:56";  // Use real-time in ISO 8601 format if available
             jsonDoc["Latitude"] = String(latitude, 6);  // Use updated GPS latitude
             jsonDoc["Longitude"] = String(longitude, 6);  // Use updated GPS longitude
@@ -193,6 +129,7 @@ void loop() {
         delay(1000); // Adjust delay for responsiveness and avoid rapid requests
     }
 }
+
 
 void connectWIFI(){
 // Connect to Wi-Fi
@@ -251,4 +188,18 @@ void updateGPS() {
 }
 
 
-
+// Function to print GPS latitude and longitude if valid
+void printGPSLocation() {
+  if (gps.location.isValid()) {
+    latitude = gps.location.lat();
+    longitude = gps.location.lng();
+ 
+    // Print only the latitude and longitude
+    Serial.print("Latitude: ");
+    Serial.println(latitude, 6);
+    Serial.print("Longitude: ");
+    Serial.println(longitude, 6);
+  } else {
+    Serial.println("Waiting for GPS signal...");
+  }
+}
