@@ -17,14 +17,14 @@ HardwareSerial GPS_Serial(1);
 // Buzzer pin configuration (GPIO 4)
 const int buzzerPin = 4;
 
-// Threshold for triggering the buzzer
+// Threshold for triggering the buzzer;
 const double BUZZER_THRESHOLD = 50.0;
 
  // GPS data
 // double latitude = -31.950551;
 // double longitude = 115.864682;
-double latitude = -31.958630;
-double longitude = 115.870925;
+double latitude = -31.977511;
+double longitude = 115.815988;
 
 // Wi-Fi credentials
 const char* ssid = "LeonLee"; // Replace with your Wi-Fi SSID
